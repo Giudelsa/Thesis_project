@@ -1,0 +1,186 @@
+SMART HOME INSTALLATION
+
+
+Firstly, configure the WiFi network interface, since my Raspberry PI model only has one Ethernet network interface.
+Once the WiFi USB adapter is connected it is possible to see the version with the command:
+dmesg 
+
+pi@raspberrypi:~ $ dmesg
+...
+[  939.267369] usb 1-1.4: new high-speed USB device number 5 using dwc_otg
+[  939.541086] usb 1-1.4: New USB device found, idVendor=148f, idProduct=2573, bcdDevice= 0.01
+[  939.541132] usb 1-1.4: New USB device strings: Mfr=1, Product=2, SerialNumber=0
+[  939.541151] usb 1-1.4: Product: 802.11 bg WLAN
+[  939.541165] usb 1-1.4: Manufacturer: Ralink
+[  939.977376] usb 1-1.4: reset high-speed USB device number 5 using dwc_otg
+[  940.431886] ieee80211 phy0: rt2x00_set_chip: Info - Chipset detected - rt: 2573, rf: 0002, rev: 000a
+[  940.432535] ieee80211 phy0: Selected rate control algorithm 'minstrel_ht'
+[  940.441114] usbcore: registered new interface driver rt73usb
+[  940.774190] ieee80211 phy0: rt2x00lib_request_firmware: Info - Loading firmware file 'rt73.bin'
+[  940.775793] ieee80211 phy0: rt2x00lib_request_firmware: Info - Firmware detected - version: 1.7
+
+As we can see the version is verified and supported.
+
+Indeed the Ethernet interface is listed with the others interfaces. To verify, use the command:
+ifconfig -a 
+
+pi@raspberrypi:~ $ ifconfig -a
+eth0: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500
+        inet 192.168.0.22  netmask 255.255.255.0  broadcast 192.168.0.255
+        inet6 fe80::d24:1a07:7903:d7dc  prefixlen 64  scopeid 0x20<link>
+        ether b8:27:eb:6e:26:36  txqueuelen 1000  (Ethernet)
+        RX packets 156487  bytes 220638891 (210.4 MiB)
+        RX errors 0  dropped 0  overruns 0  frame 0
+        TX packets 29119  bytes 2835426 (2.7 MiB)
+        TX errors 0  dropped 0 overruns 0  carrier 0  collisions 0
+
+lo: flags=73<UP,LOOPBACK,RUNNING>  mtu 65536
+        inet 127.0.0.1  netmask 255.0.0.0
+        inet6 ::1  prefixlen 128  scopeid 0x10<host>
+        loop  txqueuelen 1000  (Local Loopback)
+        RX packets 10  bytes 1600 (1.5 KiB)
+        RX errors 0  dropped 0  overruns 0  frame 0
+        TX packets 10  bytes 1600 (1.5 KiB)
+        TX errors 0  dropped 0 overruns 0  carrier 0  collisions 0
+
+wlan0: flags=4099<UP,BROADCAST,MULTICAST>  mtu 1500
+        ether 00:e0:4d:82:4d:3b  txqueuelen 1000  (Ethernet)
+        RX packets 0  bytes 0 (0.0 B)
+        RX errors 0  dropped 0  overruns 0  frame 0
+        TX packets 0  bytes 0 (0.0 B)
+        TX errors 0  dropped 0 overruns 0  carrier 0  collisions 0
+
+
+
+With the following command it is possible to see the functionalities of the WiFi NIC:
+iw list 
+
+pi@raspberrypi:~ $ iw list
+Wiphy phy0
+	wiphy index: 0
+	max # scan SSIDs: 4
+...
+	Supported interface modes:
+		 * IBSS
+		 * managed
+		 * AP
+		 * AP/VLAN
+		 * monitor
+		 * mesh point
+...
+
+As we can see, the AP (Access Point) mode is supported and we need it.
+
+Check if the NIC is not blocked with the command:
+rfkill list
+
+pi@raspberrypi:~ $ rfkill list
+0: phy0: Wireless LAN
+	Soft blocked: no
+	Hard blocked: no
+
+Now we can activate the AP mode via hostapd, that has to be installed with the following command:
+sudo apt-get install hostapd 
+
+pi@raspberrypi:~ $ sudo apt-get install hostapd
+Reading package lists... Done
+Building dependency tree... Done
+Reading state information... Done
+The following NEW packages will be installed:
+  hostapd
+0 upgraded, 1 newly installed, 0 to remove and 0 not upgraded.
+Need to get 665 kB of archives.
+After this operation, 1,817 kB of additional disk space will be used.
+Get:1 http://ftp.arnes.si/mirrors/raspbian/raspbian bullseye/main armhf hostapd armhf 2:2.9.0-21 [665 kB]
+Fetched 665 kB in 3s (260 kB/s)  
+Selecting previously unselected package hostapd.
+(Reading database ... 43650 files and directories currently installed.)
+Preparing to unpack .../hostapd_2%3a2.9.0-21_armhf.deb ...
+Unpacking hostapd (2:2.9.0-21) ...
+Setting up hostapd (2:2.9.0-21) ...
+Created symlink /etc/systemd/system/multi-user.target.wants/hostapd.service → /lib/systemd/system/hostapd.service.
+Job for hostapd.service failed because the control process exited with error code.
+See "systemctl status hostapd.service" and "journalctl -xe" for details.
+Created symlink /etc/systemd/system/hostapd.service → /dev/null.
+Processing triggers for man-db (2.9.4-2) ...
+
+
+Create and configure hostapd  with an editor command, for example vi or nano:
+sudo vi /etc/hostapd/hostapd.conf
+
+Insert the following configuration:
+
+# Band: a = 5g (a/n/ac), g = 2g (b/g/n)
+hw_mode=g
+# Channel
+channel=1
+# Country code
+country_code=IT
+# security
+auth_algs=1
+wmm_enabled=1
+
+wpa=2
+wpa_key_mgmt=WPA-PSK
+rsn_pairwise=CCMP
+
+# WiFi interface
+interface=wlan0
+ssid=SmartHome
+wpa_passphrase=ChangeMeIsTooSimple
+
+
+For the different options have a look at: 
+/usr/share/doc/hostapd/examples/hostapd.conf
+
+Rehabilitate the service:
+sudo systemctl unmask hostapd
+sudo systemctl enable hostapd
+
+Configure the wlan0 interface’s parameters with the editor (vi or others):
+sudo vi /etc/network/interfaces
+
+Add the following configuration:
+
+# Physical Wireless
+auto wlan0
+allow-hotplug wlan0
+iface wlan0 inet static
+    address 192.168.2.1
+    network 192.168.2.0
+    netmask 255.255.255.0
+    broadcast 192.168.2.255
+
+Now the DHCP server has to be configured for the SmartHome network.
+For this we install and use dnsmasq:
+sudo apt-get install dnsmasq
+
+Configure the parameter with an editor:
+sudo vi /etc/dnsmasq.conf
+
+Add the following configuration:
+
+#SMART HOME configuration
+domain=smarthome.local
+# range for dinamic IP
+dhcp-range=192.168.2.100,192.168.2.199,255.255.255.0,48h
+# For static  IP (MAC Address)
+#dhcp-host=xx:xx:xx:xx:xx,hostname,192.160.0.x,lease-time
+# other configuration
+dhcp-option=option:router,192.168.2.1
+Reading package lists... Done
+
+We now need to enable the routing between eth0 and wlan0 interfaces.
+Edit the following file with the command vi or other editor:
+sudo vi /etc/sysctl.conf
+
+Uncomment the following line:
+# Uncomment the next line to enable packet forwarding for IPv4
+net.ipv4.ip_forward=1
+
+Now restart the Raspberry:
+sudo reboot
+
+When it has restarted, check if the WiFi connection works. 
+Pay attention: the Internet connection is not working yet because we still have to configure the NAT on the eth0 interface.
+
