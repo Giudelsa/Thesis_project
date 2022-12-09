@@ -14,7 +14,7 @@ sudo iptables -A FORWARD -i eth0 -o wlan0 -m state --state RELATED,ESTABLISHED -
 So now, the connection has to be initialized from the SmartHome network and all the others will be discarded.
 
 
-Firewall configuration:
+Firewall configuration
 
 In order to avoid communication between Home network and IoT network we set the following rules:
 sudo iptables -A FORWARD  -d 192.168.0.0/24  -j DROP 
