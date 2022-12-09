@@ -1,0 +1,27 @@
+Enabling the NAT 
+
+In order to let the modem/router of the main network know the new SmartHome network, we should configure one static route. Instead, we prefer to masquerade the addresses that leave the eth0 interface of our firewall.
+ 
+To enable the NAT functionality, use the following command:
+sudo iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+
+Then, to allow devices connected to the SmartHome to create connections with Internet and the main network use the command:
+sudo iptables -A FORWARD -i wlan0 -o eth0 -j ACCEPT
+
+And to deny connections originated from Internet or the main network to the SmartHome network use:
+sudo iptables -A FORWARD -i eth0 -o wlan0 -m state --state RELATED,ESTABLISHED -j ACCEPT
+
+So now, the connection has to be initialized from the SmartHome network and all the others will be discarded.
+
+
+Firewall configuration:
+
+In order to avoid communication between Home network and IoT network we set the following rules:
+sudo iptables -A FORWARD  -d 192.168.0.0/24  -j DROP 
+sudo iptables -A FORWARD  -s 192.168.0.0/24  -j DROP
+
+Then to deny packets from outside the network with the sensor as destination:
+sudo iptables -A FORWARD ! -s 192.168.2.0/24 -d 192.168.2.45/32 -j DROP
+
+and to deny packets from the sensor to the Internet: 
+sudo iptables -A FORWARD -s 192.168.2.45/32 ! -d 192.168.2.0/24 -j DROP
